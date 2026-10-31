@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CMS Data Jemaat</title>
+
+  <!-- Firebase JS SDK modular v10 via CDN -->
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ===== Layar pemuatan awal ===== -->
+  <div class="boot-splash" id="boot-splash">
+    <div class="boot-spin"></div>
+    <div>Memuat aplikasi…</div>
+  </div>
+
+  <!-- ===== Jaring pengaman: tampil bila JS gagal boot (mis. dibuka via file://) ===== -->
+  <div class="boot-help" id="boot-help" hidden>
+    <div class="boot-ico">⚠️</div>
+    <h2>Aplikasi belum berhasil dimuat</h2>
+    <div id="boot-help-file" hidden>
+      <p>Halaman ini dibuka lewat <b>file://</b> (dobel-klik). Browser memblokir
+        ES module pada protokol itu, sehingga halaman tampil kosong putih.
+        Jalankan server lokal dari folder proyek:</p>
+      <pre>npx serve .</pre>
+      <p>atau</p>
+      <pre>python -m http.server 8123</pre>
+      <p>Lalu buka alamat yang muncul (mis. <code>http://localhost:3000</code>).</p>
+    </div>
+    <div id="boot-help-err" hidden>
+      <p>Skrip aplikasi gagal dimuat. Periksa koneksi internet
+        (CDN Firebase & Chart.js harus terjangkau) lalu muat ulang halaman.
+        Bila tetap gagal, buka <b>DevTools (F12) → Console</b>:</p>
+      <pre class="boot-detail" id="boot-detail"></pre>
+    </div>
+    <p class="boot-tip">Petunjuk lengkap: bagian <b>§8 Pemecahan masalah</b> di README.md.</p>
+  </div>
+
+  <!-- ===== Halaman login ===== -->
+  <div class="login-wrap" id="view-login" hidden>
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-logo">⛪</div>
+        <h1 id="login-church-name">Gereja</h1>
+        <p class="login-sub">CMS Data Jemaat — silakan masuk</p>
+      </div>
+
+      <div class="alert alert-warn" id="config-warning" hidden>
+        Konfigurasi Firebase belum diisi di <code>js/firebase-config.js</code>.
+        Isi dulu konfigurasi proyek agar bisa masuk.
+      </div>
+
+      <form id="login-form" hidden>
+        <label class="field">
+          <span>Email</span>
+          <input type="email" id="login-email" autocomplete="username" required />
+        </label>
+        <label class="field">
+          <span>Kata Sandi</span>
+          <input type="password" id="login-password" autocomplete="current-password" required />
+        </label>
+        <p class="form-error" id="login-error" hidden></p>
+        <button type="submit" class="btn btn-primary btn-block" id="login-btn">Masuk</button>
+      </form>
+
+      <p class="login-foot">Aplikasi pengelolaan data jemaat berbasis web</p>
+    </div>
+  </div>
+
+  <!-- ===== Kerangka aplikasi ===== -->
+  <div class="app-shell" id="app-shell" hidden>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img class="brand-logo" id="sidebar-logo" alt="" hidden />
+        <div class="brand-text">
+          <h1 id="sidebar-church-name">Gereja</h1>
+          <div class="brand-sub">CMS Data Jemaat</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" id="sidebar-nav">
+        <a href="#" class="nav-item active" data-view="dashboard">
+          <span class="nav-ico">📊</span><span data-i18n="menu.dashboard">Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-view="jemaat">
+          <span class="nav-ico">👥</span><span data-i18n="menu.jemaat">Data Jemaat</span>
+        </a>
+        <a href="#" class="nav-item" data-view="keuangan">
+          <span class="nav-ico">💰</span><span data-i18n="menu.keuangan">Keuangan</span>
+        </a>
+        <a href="#" class="nav-item" data-view="logistik">
+          <span class="nav-ico">📦</span><span data-i18n="menu.logistik">Logistik</span>
+        </a>
+        <a href="#" class="nav-item" data-view="absensi">
+          <span class="nav-ico">📝</span><span data-i18n="menu.absensi">Absensi</span>
+        </a>
+        <a href="#" class="nav-item" data-view="laporan">
+          <span class="nav-ico">📈</span><span data-i18n="menu.laporan">Laporan</span>
+        </a>
+        <a href="#" class="nav-item" data-view="pengaturan">
+          <span class="nav-ico">⚙️</span><span data-i18n="menu.pengaturan">Pengaturan</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="role-chip">
+          <span class="role-label">Masuk sebagai</span>
+          <b id="sidebar-user-role">—</b>
+        </div>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+
+    <div class="content-column">
+      <header class="topbar">
+        <button type="button" class="icon-btn" id="btn-hamburger" aria-label="Buka menu">☰</button>
+        <div class="page-title" id="page-title">Dashboard</div>
+
+        <div class="topbar-right">
+          <div class="conn-chip">
+            <span class="conn-dot" id="conn-dot"></span>
+            <span id="conn-text">Memeriksa…</span>
+          </div>
+
+          <div class="mini-select">
+            <select id="sel-lang" aria-label="Bahasa">
+              <option value="id">ID</option>
+              <option value="en">EN</option>
+            </select>
+          </div>
+
+          <div class="mini-select">
+            <select id="sel-currency" aria-label="Mata uang">
+              <option value="IDR">Rp (IDR)</option>
+              <option value="USD">$ (USD)</option>
+            </select>
+          </div>
+
+          <div class="user-chip">
+            <div class="user-avatar" id="user-avatar">U</div>
+            <div class="user-meta">
+              <b id="user-name">—</b>
+              <small id="user-email"></small>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-logout" id="btn-logout" data-i18n="action.logout">Keluar</button>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <section id="view-dashboard" class="page"></section>
+        <section id="view-jemaat" class="page" hidden></section>
+        <section id="view-keuangan" class="page" hidden></section>
+        <section id="view-logistik" class="page" hidden></section>
+        <section id="view-absensi" class="page" hidden></section>
+        <section id="view-laporan" class="page" hidden></section>
+        <section id="view-pengaturan" class="page" hidden></section>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===== Modal & toast ===== -->
+  <div class="modal-backdrop" id="modal-backdrop" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modal-title">—</h3>
+        <button type="button" class="icon-btn" id="modal-close" aria-label="Tutup">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+  <div class="toast-wrap" id="toast-wrap"></div>
+
+  <!-- Jaring pengaman: bila app.js tidak menandai __CMS_BOOTED, tampilkan bantuan -->
+  <script>
+    window.__bootErrors = "";
+    window.addEventListener("error", function (e) {
+      window.__bootErrors += (e.message || String(e.type)) + "\n";
+    });
+    setTimeout(function () {
+      if (window.__CMS_BOOTED) return;
+      var splash = document.getElementById("boot-splash");
+      if (splash) splash.hidden = true;
+      var help = document.getElementById("boot-help");
+      if (!help) return;
+      var isFile = location.protocol === "file:";
+      document.getElementById("boot-help-file").hidden = !isFile;
+      document.getElementById("boot-help-err").hidden = isFile;
+      if (!isFile) {
+        document.getElementById("boot-detail").textContent =
+          window.__bootErrors ||
+          "(tidak ada pesan galat — kemungkinan js/app.js tidak ditemukan atau CDN diblokir)";
+      }
+      help.hidden = false;
+    }, 6000);
+  </script>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
